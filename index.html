@@ -1,0 +1,371 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <title>AI系统隐私合规检测工具（本地规则版）</title>
+    <script src="https://cdn.jsdelivr.net/npm/echarts@5.4.3/dist/echarts.min.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: "Microsoft YaHei", Arial, sans-serif;
+        }
+        body {
+            background-color: #f5f7fa;
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 30px 20px;
+        }
+        .header {
+            text-align: center;
+            margin-bottom: 40px;
+            color: #2c3e50;
+        }
+        .header h1 {
+            font-size: 2.2rem;
+            margin-bottom: 10px;
+        }
+        .header p {
+            color: #7f8c8d;
+            font-size: 1rem;
+        }
+        .container {
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 2px 15px rgba(0,0,0,0.05);
+            padding: 30px;
+            margin-bottom: 30px;
+        }
+        .form-group {
+            margin-bottom: 25px;
+        }
+        .form-group label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: 600;
+            color: #34495e;
+            font-size: 1.05rem;
+        }
+        input[type="file"], select {
+            width: 100%;
+            max-width: 600px;
+            padding: 12px 15px;
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            font-size: 1rem;
+            color: #2c3e50;
+            background-color: #f9f9f9;
+            transition: border-color 0.3s;
+        }
+        input[type="file"]:focus, select:focus {
+            outline: none;
+            border-color: #3498db;
+            box-shadow: 0 0 0 2px rgba(52, 152, 219, 0.1);
+        }
+        .btn-group {
+            display: flex;
+            gap: 15px;
+            flex-wrap: wrap;
+            margin-top: 10px;
+        }
+        .btn {
+            background: #3498db;
+            color: white;
+            border: none;
+            border-radius: 8px;
+            padding: 12px 30px;
+            font-size: 1.05rem;
+            cursor: pointer;
+            transition: background-color 0.3s;
+        }
+        .btn:hover {
+            background: #2980b9;
+        }
+        .btn-loading {
+            background: #7f8c8d;
+            cursor: not-allowed;
+        }
+        .result-card, .risk-card, .error-card {
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 2px 15px rgba(0,0,0,0.05);
+            padding: 30px;
+            margin-top: 30px;
+        }
+        .risk-card {
+            border-left: 5px solid #e67e22;
+        }
+        .error-card {
+            border-left: 5px solid #e74c3c;
+            color: #e74c3c;
+        }
+        .result-header {
+            border-bottom: 1px solid #eee;
+            padding-bottom: 20px;
+            margin-bottom: 25px;
+        }
+        .result-header h3 {
+            color: #2c3e50;
+            font-size: 1.5rem;
+            margin-bottom: 10px;
+        }
+        .result-header p {
+            color: #7f8c8d;
+            font-size: 1rem;
+            line-height: 1.6;
+        }
+        .chart-container {
+            width: 100%;
+            height: 300px;
+            margin-bottom: 30px;
+        }
+        .detail-item {
+            padding: 15px;
+            border-radius: 8px;
+            margin-bottom: 12px;
+            border-left: 4px solid #ddd;
+            background-color: #f9f9f9;
+        }
+        .detail-item.compliant {
+            border-left-color: #27ae60;
+            background-color: rgba(39, 174, 96, 0.05);
+        }
+        .detail-item.non-compliant {
+            border-left-color: #e74c3c;
+            background-color: rgba(231, 76, 60, 0.05);
+        }
+        .detail-item h4 {
+            color: #2c3e50;
+            font-size: 1.1rem;
+            margin-bottom: 8px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        .detail-item p {
+            color: #555;
+            line-height: 1.6;
+            margin-bottom: 5px;
+        }
+        .icon {
+            font-size: 1.2rem;
+        }
+        .download-btn {
+            background: #27ae60;
+            margin-top: 20px;
+        }
+        .download-btn:hover {
+            background: #219653;
+        }
+        .hidden {
+            display: none;
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>AI系统隐私合规检测工具</h1>
+        <p>基于GDPR/AI Act本地规则检测（支持多领域适配）</p>
+    </div>
+
+    <div class="container">
+        <form id="mainForm" enctype="multipart/form-data">
+            <div class="form-group">
+                <label>1. 上传AI系统相关文件（支持Py/JSON/PDF，可多选）：</label>
+                <input type="file" name="files" id="filesInput" accept=".py,.json,.pdf" multiple required>
+            </div>
+            <div class="form-group">
+                <label>2. 选择应用领域（精准适配检测规则）：</label>
+                <select name="domain" id="domainSelect">
+                    <option value="general">通用领域（默认）</option>
+                    <option value="education">教育领域（儿童/学生数据）</option>
+                    <option value="medical">医疗领域（病历/患者数据）</option>
+                    <option value="finance">金融领域（交易/征信数据）</option>
+                </select>
+            </div>
+            <div class="btn-group">
+                <button type="button" class="btn" onclick="runLocalDetect()">开始本地规则检测</button>
+            </div>
+        </form>
+    </div>
+
+    <!-- 错误提示 -->
+    <div id="errorCard" class="error-card hidden">
+        <h3>⚠️ 操作提示</h3>
+        <p id="errorText"></p>
+    </div>
+
+    <!-- 风险预判断结果 -->
+    <div id="riskCard" class="risk-card hidden">
+        <div class="result-header">
+            <h3>AI法案风险预判断结果</h3>
+        </div>
+        <p><strong>风险等级：</strong> <span id="riskDesc"></span></p>
+        <p><strong>处理建议：</strong> <span id="riskAction"></span></p>
+    </div>
+
+    <!-- 本地检测结果 -->
+    <div id="localResultCard" class="result-card hidden">
+        <div class="result-header">
+            <h3>隐私合规检测结果（本地规则）</h3>
+            <p>AI系统风险等级：<span id="aiRiskLevel"></span> | 隐私合规率：<span id="complianceRate"></span>%</p>
+            <p>核心结论：<span id="conclusion"></span></p>
+        </div>
+
+        <div class="chart-container" id="complianceChart"></div>
+        <div id="detailsContainer"></div>
+
+        <a href="/download_report" target="_blank">
+            <button type="button" class="btn download-btn">下载PDF检测报告</button>
+        </a>
+    </div>
+
+    <script>
+        // 显示错误
+        function showError(msg) {
+            const errorCard = document.getElementById('errorCard');
+            const errorText = document.getElementById('errorText');
+            errorText.textContent = msg;
+            errorCard.classList.remove('hidden');
+            document.getElementById('riskCard').classList.add('hidden');
+            document.getElementById('localResultCard').classList.add('hidden');
+        }
+
+        // 隐藏错误
+        function hideError() {
+            document.getElementById('errorCard').classList.add('hidden');
+        }
+
+        // 本地检测
+        function runLocalDetect() {
+            const files = document.getElementById('filesInput').files;
+            const domain = document.getElementById('domainSelect').value;
+
+            if (files.length === 0) {
+                showError("请至少上传一个文件！");
+                return;
+            }
+            hideError();
+
+            const formData = new FormData();
+            for (let i = 0; i < files.length; i++) {
+                formData.append('files', files[i]);
+            }
+            formData.append('domain', domain); // 传递领域参数
+
+            // 按钮加载状态
+            const btn = event.target;
+            btn.classList.add('btn-loading');
+            btn.disabled = true;
+            btn.innerText = '检测中...';
+
+            fetch('/detect', {
+                method: 'POST',
+                body: formData
+            })
+            .then(response => {
+                if (!response.ok) {
+                    throw new Error(`请求失败（状态码：${response.status}）`);
+                }
+                return response.json().catch(err => {
+                    return response.text().then(text => {
+                        throw new Error(`后端返回非JSON数据：${text.substring(0, 200)}`);
+                    });
+                });
+            })
+            .then(data => {
+                if (data.error) {
+                    showError(data.error);
+                    return;
+                }
+                // 展示风险结果
+                const riskCard = document.getElementById('riskCard');
+                document.getElementById('riskDesc').textContent = data.risk_result.risk_desc;
+                document.getElementById('riskAction').textContent = data.risk_result.action;
+                riskCard.classList.remove('hidden');
+
+                // 展示本地检测结果
+                if (data.risk_result.risk_level !== 'forbidden' && data.result) {
+                    const localCard = document.getElementById('localResultCard');
+                    document.getElementById('aiRiskLevel').textContent = data.result.ai_risk_level;
+                    document.getElementById('complianceRate').textContent = data.result.compliance_rate;
+                    document.getElementById('conclusion').textContent = data.result.conclusion;
+                    localCard.classList.remove('hidden');
+
+                    renderChart(data.result);
+                    renderDetails(data.result.details);
+                }
+            })
+            .catch(error => {
+                showError(`本地检测失败：${error.message}`);
+                console.error(error);
+            })
+            .finally(() => {
+                // 恢复按钮状态
+                const btn = event.target;
+                btn.classList.remove('btn-loading');
+                btn.disabled = false;
+                btn.innerText = '开始本地规则检测';
+            });
+        }
+
+        // 渲染环形图
+        function renderChart(result) {
+            if (!result || result.detected_items_num === 0) return;
+            const chartDom = document.getElementById('complianceChart');
+            const myChart = echarts.init(chartDom);
+            const option = {
+                title: {
+                    text: '隐私合规率分布',
+                    left: 'center',
+                    textStyle: { fontSize: 16, color: '#2c3e50' }
+                },
+                tooltip: { trigger: 'item', formatter: '{a} <br/>{b}: {c} ({d}%)' },
+                legend: { orient: 'vertical', left: 'left', textStyle: { color: '#555' } },
+                series: [{
+                    name: '检测项状态',
+                    type: 'pie',
+                    radius: ['40%', '70%'],
+                    avoidLabelOverlap: false,
+                    itemStyle: { borderRadius: 10, borderColor: '#fff', borderWidth: 2 },
+                    label: { show: false, position: 'center' },
+                    emphasis: { label: { show: true, fontSize: 20, fontWeight: 'bold' } },
+                    labelLine: { show: false },
+                    data: [
+                        { value: result.compliant_count, name: '符合', itemStyle: { color: '#27ae60' } },
+                        { value: result.non_compliant_count, name: '不符合', itemStyle: { color: '#e74c3c' } }
+                    ]
+                }]
+            };
+            myChart.setOption(option);
+            window.addEventListener('resize', () => myChart.resize());
+        }
+
+        // 渲染详细检测项
+        function renderDetails(details) {
+            if (!details || details.length === 0) return;
+            const container = document.getElementById('detailsContainer');
+            container.innerHTML = '<h3 style="color: #2c3e50; margin-bottom: 20px;">详细检测项结果</h3>';
+            details.forEach(item => {
+                const cls = item.compliant ? 'compliant' : 'non-compliant';
+                const icon = item.compliant ? '✅' : '❌';
+                const status = item.compliant ? '符合' : '不符合';
+                const reason = item.reason && !item.compliant ? `<p><strong>不合规原因：</strong> ${item.reason}</p>` : '';
+
+                container.innerHTML += `
+                    <div class="detail-item ${cls}">
+                        <h4>
+                            <span class="icon">${icon}</span>
+                            ${item.name}
+                        </h4>
+                        <p><strong>状态：</strong> ${status}</p>
+                        ${reason}
+                        <p><strong>整改建议：</strong> ${item.suggestion}</p>
+                    </div>
+                `;
+            });
+        }
+    </script>
+</body>
+</html>
