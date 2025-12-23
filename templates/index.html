@@ -1,0 +1,165 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI Compliance Automated Audit System</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <style>
+        body { background-color: #f8f9fa; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
+        .main-container { max-width: 1000px; margin: 40px auto; background: white; padding: 30px; border-radius: 15px; box-shadow: 0 4px 20px rgba(0,0,0,0.05); }
+        .upload-area { border: 2px dashed #dee2e6; border-radius: 10px; padding: 40px; text-align: center; cursor: pointer; transition: all 0.3s; }
+        .upload-area:hover { border-color: #0d6efd; background-color: #f1f8ff; }
+        .pii-warning { background-color: #fff3cd; border-left: 5px solid #ffc107; padding: 10px; font-size: 0.9em; color: #856404; margin-top: 5px; }
+        .hidden { display: none; }
+    </style>
+</head>
+<body>
+
+<div class="container main-container">
+    <div class="text-center mb-5">
+        <h1 class="fw-bold text-primary">🛡️ AI Compliance Auditor</h1>
+        <p class="text-muted">Automated Technical Compliance Check based on GDPR & EU AI Act</p>
+    </div>
+
+    <div class="card mb-4 border-0 shadow-sm">
+        <div class="card-body">
+            <form id="uploadForm">
+                <div class="mb-3">
+                    <label class="form-label fw-bold">Select Business Domain</label>
+                    <select class="form-select" name="domain">
+                        <option value="general">General Purpose</option>
+                        <option value="education">Education (K12/Grading)</option>
+                        <option value="medical">Healthcare (Clinical/Diagnosis)</option>
+                        <option value="finance">Finance (Credit/Loan)</option>
+                    </select>
+                </div>
+
+                <div class="upload-area" id="dropZone">
+                    <div class="mb-3"><i class="bi bi-cloud-arrow-up" style="font-size: 2rem;"></i></div>
+                    <h5>Click or Drag files here</h5>
+                    <p class="text-muted small">Supports: .csv, .xlsx, .pdf, .py, .md, .json</p>
+                    <input type="file" name="files" id="fileInput" multiple hidden>
+                </div>
+                <div id="fileList" class="mt-3 text-muted small"></div>
+
+                <div class="d-grid gap-2 mt-4">
+                    <button type="submit" class="btn btn-primary btn-lg">🚀 Start Audit</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <div id="loading" class="hidden text-center my-4">
+        <div class="spinner-border text-primary" role="status"></div>
+        <p class="mt-2 text-primary">Analyzing Code, Data, and Documentation...</p>
+    </div>
+
+    <div id="resultArea" class="hidden">
+
+        <!-- Scientific Metrics (For Thesis) -->
+        <div id="evalDashboard" class="card mb-4 border-info shadow-sm hidden">
+            <div class="card-header bg-info text-white fw-bold">🧪 Scientific Evaluation Metrics</div>
+            <div class="card-body text-center">
+                <div class="row">
+                    <div class="col-3"><h3 class="text-primary" id="mRecall">0%</h3><small>Recall</small></div>
+                    <div class="col-3"><h3 class="text-success" id="mPrecision">0%</h3><small>Precision</small></div>
+                    <div class="col-3"><h3 id="mTP">0</h3><small>True Positive</small></div>
+                    <div class="col-3"><h3 class="text-danger" id="mFN">0</h3><small>False Negative</small></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Risk Summary -->
+        <div class="alert alert-light border shadow-sm" id="riskSummaryAlert">
+            <h4 class="alert-heading fw-bold" id="riskTitle">Risk Assessment</h4>
+            <hr>
+            <div class="row">
+                <div class="col-md-6"><strong>Compliance Rate:</strong> <span id="complianceRate" class="fs-4 fw-bold"></span></div>
+                <div class="col-md-6"><strong>Status:</strong> <span id="riskConclusion"></span></div>
+            </div>
+        </div>
+
+        <!-- Details -->
+        <h4 class="mt-4 mb-3">Audit Details</h4>
+        <div class="table-responsive">
+            <table class="table table-hover align-middle shadow-sm bg-white rounded">
+                <thead class="table-light">
+                    <tr><th>Check Item</th><th>Status</th><th>Audit Evidence / Reason</th></tr>
+                </thead>
+                <tbody id="resultTableBody"></tbody>
+            </table>
+        </div>
+
+        <div class="text-center mt-4">
+            <a href="/download_report" class="btn btn-outline-dark">📥 Download PDF Report</a>
+        </div>
+    </div>
+</div>
+
+<script>
+    const dropZone = document.getElementById('dropZone');
+    const fileInput = document.getElementById('fileInput');
+    const form = document.getElementById('uploadForm');
+
+    dropZone.addEventListener('click', () => fileInput.click());
+    fileInput.addEventListener('change', () => {
+        document.getElementById('fileList').innerHTML = Array.from(fileInput.files).map(f => `📄 ${f.name}`).join('<br>');
+    });
+
+    form.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        document.getElementById('loading').classList.remove('hidden');
+        document.getElementById('resultArea').classList.add('hidden');
+
+        const formData = new FormData(form);
+        try {
+            const res = await fetch('/detect', { method: 'POST', body: formData });
+            const data = await res.json();
+            document.getElementById('loading').classList.add('hidden');
+
+            if (data.error) { alert(data.error); return; }
+
+            document.getElementById('resultArea').classList.remove('hidden');
+
+            // Render Metrics
+            if (data.evaluation) {
+                document.getElementById('evalDashboard').classList.remove('hidden');
+                document.getElementById('mRecall').innerText = data.evaluation.Recall + '%';
+                document.getElementById('mPrecision').innerText = data.evaluation.Precision + '%';
+                document.getElementById('mTP').innerText = data.evaluation.Matrix.TP;
+                document.getElementById('mFN').innerText = data.evaluation.Matrix.FN;
+            } else {
+                document.getElementById('evalDashboard').classList.add('hidden');
+            }
+
+            // Render Risk
+            const risk = data.risk_result;
+            const result = data.result;
+            const colors = {'forbidden': 'alert-danger', 'high': 'alert-warning', 'limited': 'alert-info', 'low': 'alert-success'};
+            document.getElementById('riskSummaryAlert').className = `alert ${colors[risk.risk_level] || 'alert-light'} border shadow-sm`;
+            document.getElementById('riskTitle').innerText = `⚠️ ${risk.desc}`;
+            document.getElementById('complianceRate').innerText = result ? `${result.compliance_rate}%` : '0%';
+            document.getElementById('riskConclusion').innerText = result ? result.conclusion : risk.action;
+
+            // Render Table
+            const tbody = document.getElementById('resultTableBody');
+            tbody.innerHTML = '';
+            if (result && result.details) {
+                result.details.forEach(item => {
+                    const row = document.createElement('tr');
+                    const icon = item.compliant ? '✅ PASS' : '❌ FAIL';
+                    const cls = item.compliant ? 'text-success fw-bold' : 'text-danger fw-bold';
+                    row.innerHTML = `
+                        <td class="fw-bold">${item.name}</td>
+                        <td class="${cls}">${icon}</td>
+                        <td>${item.compliant ? '<span class="text-muted">No issues found.</span>' : item.reason}</td>
+                    `;
+                    tbody.appendChild(row);
+                });
+            }
+        } catch (err) { alert(err); }
+    });
+</script>
+</body>
+</html>
